@@ -19,10 +19,25 @@ app.use(fileUpload({
 app.use('/api/pdf', require('./routes/pdfRoutes'));
 app.use('/api/convert', require('./routes/convertRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/document', require('./routes/documentRoutes'));
 
 // Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'Docu-Assistant API is running!' });
+  res.json({ 
+    status: 'ok',
+    message: 'Docu-Assistant Backend API is running!',
+    version: '1.0.0',
+    endpoints: {
+      pdf: '/api/pdf/*',
+      convert: '/api/convert/*',
+      ai: '/api/ai/*',
+      document: '/api/document/*'
+    }
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Error handling

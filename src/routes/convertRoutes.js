@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-
-// These routes will handle document conversions
-// For now, we'll create placeholders that return appropriate messages
+const convertService = require('../services/convertService');
+const officeConversionService = require('../services/officeConversionService');
+const archiver = require('archiver');
 
 // Images to PDF
 router.post('/images-to-pdf', async (req, res) => {
@@ -11,16 +11,89 @@ router.post('/images-to-pdf', async (req, res) => {
       return res.status(400).json({ error: 'No images uploaded' });
     }
 
-    // TODO: Implement image to PDF conversion
-    // You can use libraries like 'pdfkit' or 'jspdf'
-    
-    res.json({ 
-      message: 'Images to PDF conversion coming soon',
-      info: 'This requires additional libraries like pdfkit or sharp'
-    });
+    const files = Array.isArray(req.files.images) ? req.files.images : [req.files.images];
+    const resultPdf = await convertService.imagesToPDF(files);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=images.pdf');
+    res.send(resultPdf);
   } catch (error) {
     console.error('Images to PDF error:', error);
     res.status(500).json({ error: 'Failed to convert images to PDF' });
+  }
+});
+
+// JPG to PDF
+router.post('/jpg-to-pdf', async (req, res) => {
+  try {
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({ error: 'No image uploaded' });
+    }
+
+    const resultPdf = await convertService.imageToPDF(req.files.image);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(resultPdf);
+  } catch (error) {
+    console.error('JPG to PDF error:', error);
+    res.status(500).json({ error: 'Failed to convert JPG to PDF' });
+  }
+});
+
+// PNG to PDF
+router.post('/png-to-pdf', async (req, res) => {
+  try {
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({ error: 'No image uploaded' });
+    }
+
+    const resultPdf = await convertService.imageToPDF(req.files.image);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(resultPdf);
+  } catch (error) {
+    console.error('PNG to PDF error:', error);
+    res.status(500).json({ error: 'Failed to convert PNG to PDF' });
+  }
+});
+
+// Text to PDF
+router.post('/text-to-pdf', async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'No text provided' });
+    }
+
+    const resultPdf = await convertService.textToPDF(text);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=text.pdf');
+    res.send(resultPdf);
+  } catch (error) {
+    console.error('Text to PDF error:', error);
+    res.status(500).json({ error: 'Failed to convert text to PDF' });
+  }
+});
+
+// HTML to PDF
+router.post('/html-to-pdf', async (req, res) => {
+  try {
+    const { html } = req.body;
+    if (!html) {
+      return res.status(400).json({ error: 'No HTML provided' });
+    }
+
+    const resultPdf = await convertService.htmlToPDF(html);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=html.pdf');
+    res.send(resultPdf);
+  } catch (error) {
+    console.error('HTML to PDF error:', error);
+    res.status(500).json({ error: 'Failed to convert HTML to PDF' });
   }
 });
 
@@ -31,16 +104,18 @@ router.post('/word-to-pdf', async (req, res) => {
       return res.status(400).json({ error: 'No document uploaded' });
     }
 
-    // TODO: Implement Word to PDF conversion
-    // Requires LibreOffice or MS Office API or commercial services
-    
-    res.json({ 
-      message: 'Word to PDF conversion coming soon',
-      info: 'This requires LibreOffice headless mode or a commercial API like CloudConvert'
-    });
+    const resultPdf = await officeConversionService.wordToPDF(req.files.document);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(resultPdf);
   } catch (error) {
     console.error('Word to PDF error:', error);
-    res.status(500).json({ error: 'Failed to convert Word to PDF' });
+    res.status(500).json({ 
+      error: 'Failed to convert Word to PDF',
+      details: error.message,
+      hint: 'Ensure LibreOffice is installed on the server'
+    });
   }
 });
 
@@ -51,15 +126,18 @@ router.post('/ppt-to-pdf', async (req, res) => {
       return res.status(400).json({ error: 'No document uploaded' });
     }
 
-    // TODO: Implement PowerPoint to PDF conversion
-    
-    res.json({ 
-      message: 'PowerPoint to PDF conversion coming soon',
-      info: 'This requires LibreOffice or commercial API'
-    });
+    const resultPdf = await officeConversionService.pptToPDF(req.files.document);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(resultPdf);
   } catch (error) {
     console.error('PowerPoint to PDF error:', error);
-    res.status(500).json({ error: 'Failed to convert PowerPoint to PDF' });
+    res.status(500).json({ 
+      error: 'Failed to convert PowerPoint to PDF',
+      details: error.message,
+      hint: 'Ensure LibreOffice is installed on the server'
+    });
   }
 });
 
@@ -70,15 +148,122 @@ router.post('/excel-to-pdf', async (req, res) => {
       return res.status(400).json({ error: 'No document uploaded' });
     }
 
-    // TODO: Implement Excel to PDF conversion
-    
-    res.json({ 
-      message: 'Excel to PDF conversion coming soon',
-      info: 'This requires LibreOffice or commercial API'
-    });
+    const resultPdf = await officeConversionService.excelToPDF(req.files.document);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(resultPdf);
   } catch (error) {
     console.error('Excel to PDF error:', error);
-    res.status(500).json({ error: 'Failed to convert Excel to PDF' });
+    res.status(500).json({ 
+      error: 'Failed to convert Excel to PDF',
+      details: error.message,
+      hint: 'Ensure LibreOffice is installed on the server'
+    });
+  }
+});
+
+// PDF to JPG
+router.post('/pdf-to-jpg', async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ error: 'No PDF uploaded' });
+    }
+
+    const images = await convertService.pdfToImages(req.files.pdf, 'jpg');
+
+    if (images.length === 1) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Content-Disposition', 'attachment; filename=page-1.jpg');
+      res.send(images[0]);
+    } else {
+      // Create ZIP file with multiple images
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename=pdf-images.zip');
+      
+      archive.pipe(res);
+      
+      images.forEach((imageBuffer, index) => {
+        archive.append(imageBuffer, { name: `page-${index + 1}.jpg` });
+      });
+      
+      await archive.finalize();
+    }
+  } catch (error) {
+    console.error('PDF to JPG error:', error);
+    res.status(500).json({ error: 'Failed to convert PDF to JPG' });
+  }
+});
+
+// PDF to PNG
+router.post('/pdf-to-png', async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ error: 'No PDF uploaded' });
+    }
+
+    const images = await convertService.pdfToImages(req.files.pdf, 'png');
+
+    if (images.length === 1) {
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', 'attachment; filename=page-1.png');
+      res.send(images[0]);
+    } else {
+      // Create ZIP file with multiple images
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename=pdf-images.zip');
+      
+      archive.pipe(res);
+      
+      images.forEach((imageBuffer, index) => {
+        archive.append(imageBuffer, { name: `page-${index + 1}.png` });
+      });
+      
+      await archive.finalize();
+    }
+  } catch (error) {
+    console.error('PDF to PNG error:', error);
+    res.status(500).json({ error: 'Failed to convert PDF to PNG' });
+  }
+});
+
+// PDF to Text
+router.post('/pdf-to-text', async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ error: 'No PDF uploaded' });
+    }
+
+    const text = await convertService.pdfToText(req.files.pdf);
+
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.txt');
+    res.send(text);
+  } catch (error) {
+    console.error('PDF to text error:', error);
+    res.status(500).json({ error: 'Failed to convert PDF to text' });
+  }
+});
+
+// PDF to HTML
+router.post('/pdf-to-html', async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ error: 'No PDF uploaded' });
+    }
+
+    const html = await convertService.pdfToHTML(req.files.pdf);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.html');
+    res.send(html);
+  } catch (error) {
+    console.error('PDF to HTML error:', error);
+    res.status(500).json({ error: 'Failed to convert PDF to HTML' });
   }
 });
 
@@ -89,34 +274,62 @@ router.post('/pdf-to-word', async (req, res) => {
       return res.status(400).json({ error: 'No PDF uploaded' });
     }
 
-    // TODO: Implement PDF to Word conversion
-    
-    res.json({ 
-      message: 'PDF to Word conversion coming soon',
-      info: 'This requires commercial APIs like Adobe PDF Services or pdf2docx'
-    });
+    const resultDocx = await officeConversionService.pdfToWord(req.files.pdf);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
+    res.send(resultDocx);
   } catch (error) {
     console.error('PDF to Word error:', error);
-    res.status(500).json({ error: 'Failed to convert PDF to Word' });
+    res.status(500).json({ 
+      error: 'Failed to convert PDF to Word',
+      details: error.message,
+      hint: 'Install pdf2docx: pip install pdf2docx'
+    });
   }
 });
 
-// PDF to Images
-router.post('/pdf-to-images', async (req, res) => {
+// PDF to PowerPoint
+router.post('/pdf-to-ppt', async (req, res) => {
   try {
     if (!req.files || !req.files.pdf) {
       return res.status(400).json({ error: 'No PDF uploaded' });
     }
 
-    // TODO: Implement PDF to images conversion
-    
-    res.json({ 
-      message: 'PDF to images conversion coming soon',
-      info: 'This requires pdf-poppler or pdf2pic libraries'
-    });
+    const resultPptx = await officeConversionService.pdfToPPT(req.files.pdf);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pptx');
+    res.send(resultPptx);
   } catch (error) {
-    console.error('PDF to images error:', error);
-    res.status(500).json({ error: 'Failed to convert PDF to images' });
+    console.error('PDF to PPT error:', error);
+    res.status(500).json({ 
+      error: 'Failed to convert PDF to PowerPoint',
+      details: error.message,
+      hint: 'This feature requires pdf2image and python-pptx: pip install pdf2image python-pptx'
+    });
+  }
+});
+
+// PDF to Excel
+router.post('/pdf-to-excel', async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ error: 'No PDF uploaded' });
+    }
+
+    const resultXlsx = await officeConversionService.pdfToExcel(req.files.pdf);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
+    res.send(resultXlsx);
+  } catch (error) {
+    console.error('PDF to Excel error:', error);
+    res.status(500).json({ 
+      error: 'Failed to convert PDF to Excel',
+      details: error.message,
+      hint: 'Install tabula-py: pip install tabula-py pandas openpyxl'
+    });
   }
 });
 

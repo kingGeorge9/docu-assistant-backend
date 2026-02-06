@@ -73,60 +73,13 @@ class AIService {
   }
 
   // Analyze document
-  async analyzeDocument(file) {
+  async analyzeDocument(file, analysisType) {
     const text = await this.extractTextFromPDF(file);
     
-    const message = await this.client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      messages: [{
-        role: "user",
-        content: `Analyze this document and provide insights including: main topics, sentiment, key findings, and recommendations:\n\n${text.slice(0, 100000)}`
-      }]
-    });
-
-    return message.content[0].text;
-  }
-
-  // Chat with document
-  async chatWithDocument(file, question) {
-    const text = await this.extractTextFromPDF(file);
+    let prompt = 'Analyze this document and provide insights including: main topics, sentiment, key findings, and recommendations:';
     
-    const message = await this.client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [{
-        role: "user",
-        content: `Based on the following document, answer this question: ${question}\n\nDocument:\n${text.slice(0, 100000)}`
-      }]
-    });
-
-    return message.content[0].text;
-  }
-
-  // Extract tasks
-  async extractTasks(file) {
-    const text = await this.extractTextFromPDF(file);
-    
-    const message = await this.client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [{
-        role: "user",
-        content: `Extract all action items, tasks, and to-dos from this document. Format as a numbered list:\n\n${text.slice(0, 100000)}`
-      }]
-    });
-
-    return message.content[0].text;
-  }
-
-  // Generate content
-  async generateContent(prompt, documentContext = null) {
-    let content = prompt;
-    
-    if (documentContext) {
-      const text = await this.extractTextFromPDF(documentContext);
-      content = `Based on this document:\n${text.slice(0, 50000)}\n\n${prompt}`;
+    if (analysisType) {
+      prompt = `Analyze this document focusing on ${analysisType}:`;
     }
 
     const message = await this.client.messages.create({
@@ -134,11 +87,64 @@ class AIService {
       max_tokens: 2048,
       messages: [{
         role: "user",
-        content: content
+        content: `${prompt}\n\n${text.slice(0, 100000)}`
       }]
     });
 
     return message.content[0].text;
+  }
+
+  // Chat with document
+  async chatWithDocument(file, question, history) {
+    let contextText = '';
+    
+    if (file) {
+      contextText = await this.extractTextFromPDF(file);
+    }
+
+    let conversationContext = '';
+    if (history && Array.isArray(history)) {
+      conversationContext = history.map(h => `${h.role}: ${h.content}`).join('\n');
+    }
+
+    const message = await this.client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: file 
+          ? `Based on the following document, answer this question: ${question}\n\nPrevious conversation:\n${conversationContext}\n\nDocument:\n${contextText.slice(0, 100000)}`
+          : `${conversationContext}\n\nUser: ${question}`
+      }]
+    });
+
+    return message.content[0].text;
+  }
+
+  // Fill form with AI
+  async fillForm(formFile, dataSource) {
+    const pdfParse = require('pdf-parse');
+    const formBuffer = await fs.readFile(formFile.tempFilePath);
+    const formData = await pdfParse(formBuffer);
+    
+    let sourceText = '';
+    if (dataSource) {
+      const sourceBuffer = await fs.readFile(dataSource.tempFilePath);
+      const sourceData = await pdfParse(sourceBuffer);
+      sourceText = sourceData.text;
+    }
+
+    const message = await this.client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2048,
+      messages: [{
+        role: "user",
+        content: `Extract information to fill this form:\n\nForm fields:\n${formData.text.slice(0, 50000)}\n\nData source:\n${sourceText.slice(0, 50000)}\n\nProvide the extracted data in JSON format.`
+      }]
+    });
+
+    // Return placeholder URL - in production, would save filled form and return actual URL
+    return '/api/document/filled-form-' + Date.now();
   }
 }
 
