@@ -7,4 +7,5 @@ node_modules/
 uploads/
 tmp/
 dist/
-build/
+build/.env.local
+.env
